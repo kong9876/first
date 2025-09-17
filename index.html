@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수업 진도표</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Aggravo';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroL.woff') format('woff');
+            font-weight: 300;
+            font-display: swap;
+        }
+        body {
+            font-family: 'Aggravo', 'Jua', sans-serif;
+            background-color: #f7f3e9;
+        }
+        .container {
+            max-width: 768px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        .card {
+            background-color: #fff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+        }
+        .btn-primary {
+            background-color: #93b5e1;
+            color: white;
+            transition: transform 0.2s ease;
+        }
+        .btn-primary:hover {
+            background-color: #7b99c7;
+            transform: translateY(-2px);
+        }
+        .btn-delete {
+            background-color: #ff9393;
+            transition: transform 0.2s ease;
+        }
+        .btn-delete:hover {
+            background-color: #ff6363;
+            transform: translateY(-2px);
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        input[type="checkbox"]:checked + label {
+            text-decoration: line-through;
+            color: #b2b2b2;
+        }
+        .lesson-item {
+            border-bottom: 1px solid #e5e5e5;
+        }
+        .lesson-item:last-child {
+            border-bottom: none;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #93b5e1;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            vertical-align: top;
+            border-bottom: 1px solid #e5e5e5;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            color: #4a5568;
+            position: sticky;
+            top: 0;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        @media (max-width: 640px) {
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+            thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+            tr {
+                border: 1px solid #ccc;
+                margin-bottom: 0.5rem;
+                border-radius: 0.75rem;
+                overflow: hidden;
+            }
+            td {
+                border: none;
+                position: relative;
+                padding-left: 50%;
+                text-align: right;
+            }
+            td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 6px;
+                width: 45%;
+                padding-right: 10px;
+                white-space: nowrap;
+                text-align: left;
+                font-weight: bold;
+                color: #4a5568;
+            }
+            .lesson-actions {
+                text-align: center;
+                padding-top: 0.5rem;
+                padding-bottom: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+    <header class="bg-[#93b5e1] text-white p-6 rounded-b-[3rem] text-center shadow-lg">
+        <h1 class="text-3xl font-bold">수업 진도표</h1>
+        <p class="text-sm mt-1 opacity-80">수업 기록을 추가하고 관리하세요</p>
+    </header>
+
+    <main class="container flex-grow">
+        <!-- 메시지 모달 -->
+        <div id="message-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-overlay">
+            <div class="card p-6 w-full max-w-sm text-center">
+                <p id="modal-content" class="text-gray-700 text-lg mb-4"></p>
+                <button onclick="window.closeModal()" class="w-full py-2 px-4 rounded-full text-white bg-[#93b5e1] font-bold">확인</button>
+            </div>
+        </div>
+
+        <!-- 수업 추가 카드 -->
+        <section class="card mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">결시 수업 추가</h2>
+            <form id="add-lesson-form" class="space-y-4">
+                <div>
+                    <label for="lesson-date" class="block text-sm font-medium text-gray-700">날짜</label>
+                    <input type="date" id="lesson-date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 focus:border-[#93b5e1] focus:ring focus:ring-[#93b5e1] focus:ring-opacity-50 transition duration-150 ease-in-out">
+                </div>
+                <div>
+                    <label for="lesson-unit" class="block text-sm font-medium text-gray-700">단원 또는 주제</label>
+                    <select id="lesson-unit" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 focus:border-[#93b5e1] focus:ring focus:ring-[#93b5e1] focus:ring-opacity-50 transition duration-150 ease-in-out">
+                        <option value="" disabled selected>단원 선택</option>
+                        <option value="데이터 입력하기">1. 데이터 입력하기</option>
+                        <option value="기초함수">2. 기초함수</option>
+                        <option value="IF함수">3. IF함수</option>
+                        <option value="SUMIF, COUNTIF">4. SUMIF, COUNTIF</option>
+                        <option value="피벗테이블">5. 피벗테이블</option>
+                        <option value="차트">6. 차트</option>
+                    </select>
+                </div>
+                <!-- 결시 학생 입력 필드 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">결시 학생</label>
+                    <div class="flex items-end space-x-2">
+                        <div class="flex-1">
+                            <label for="absent-class" class="block text-xs font-medium text-gray-500 mb-1">반</label>
+                            <!-- 기존 input 필드를 select로 변경 -->
+                            <select id="absent-class" class="block w-full rounded-md border-gray-300 shadow-sm p-3 focus:border-[#93b5e1] focus:ring focus:ring-[#93b5e1] focus:ring-opacity-50 transition duration-150 ease-in-out">
+                                <option value="" disabled selected>반 선택</option>
+                                <option value="1반">1반</option>
+                                <option value="2반">2반</option>
+                                <option value="3반">3반</option>
+                                <option value="4반">4반</option>
+                                <option value="5반">5반</option>
+                                <option value="6반">6반</option>
+                                <option value="7반">7반</option>
+                                <option value="8반">8반</option>
+                                <option value="9반">9반</option>
+                                <option value="10반">10반</option>
+                                <option value="11반">11반</option>
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label for="absent-name" class="block text-xs font-medium text-gray-500 mb-1">이름</label>
+                            <input type="text" id="absent-name" placeholder="예: 김민수" class="block w-full rounded-md border-gray-300 shadow-sm p-3 focus:border-[#93b5e1] focus:ring focus:ring-[#93b5e1] focus:ring-opacity-50 transition duration-150 ease-in-out">
+                        </div>
+                        <button type="button" id="add-absent-student-btn" class="flex-shrink-0 p-3 rounded-full bg-gray-300 hover:bg-gray-400 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- 추가된 학생 목록 -->
+                    <div id="absent-students-list" class="mt-4 space-y-2"></div>
+                </div>
+
+                <button type="submit" class="w-full py-3 rounded-full text-white font-bold btn-primary">
+                    <span id="add-button-text">결시 수업 추가하기</span>
+                    <div id="add-spinner" class="loading-spinner hidden mx-auto"></div>
+                </button>
+            </form>
+        </section>
+
+        <!-- 결시 수업 목록 카드 -->
+        <section class="card mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">결시 수업 목록</h2>
+            
+            <div id="lessons-table-container" class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead>
+                        <tr>
+                            <th class="w-1/4">날짜</th>
+                            <th class="w-1/4">주제</th>
+                            <th class="w-1/4">결시 학생</th>
+                            <th class="w-1/4 text-right">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lessons-table-body" class="divide-y divide-gray-200">
+                        <tr id="no-lessons-message" class="text-center text-gray-500 hidden">
+                            <td colspan="4" class="py-4">아직 등록된 결시 수업이 없습니다.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="lessons-spinner" class="loading-spinner mx-auto hidden mt-4"></div>
+        </section>
+    </main>
+
+    <footer class="text-center text-gray-500 text-sm mt-8 pb-4">
+        <p>앱 ID: <span id="app-id"></span></p>
+        <p>사용자 ID: <span id="user-id"></span></p>
+    </footer>
+
+    <!-- Firebase SDK 스크립트 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firestore 디버그 로깅 활성화
+        setLogLevel('debug');
+
+        // 전역 변수 설정
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // HTML 요소 참조
+        const lessonsTableBody = document.getElementById('lessons-table-body');
+        const addLessonForm = document.getElementById('add-lesson-form');
+        const messageModal = document.getElementById('message-modal');
+        const modalContent = document.getElementById('modal-content');
+        const appIdSpan = document.getElementById('app-id');
+        const userIdSpan = document.getElementById('user-id');
+        const addSpinner = document.getElementById('add-spinner');
+        const addText = document.getElementById('add-button-text');
+        const lessonsSpinner = document.getElementById('lessons-spinner');
+        const noLessonsMessage = document.getElementById('no-lessons-message');
+
+        const absentClassInput = document.getElementById('absent-class');
+        const absentNameInput = document.getElementById('absent-name');
+        const addAbsentStudentBtn = document.getElementById('add-absent-student-btn');
+        const absentStudentsList = document.getElementById('absent-students-list');
+
+        // Firebase 초기화
+        let app, db, auth;
+        let userId = null;
+
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch (error) {
+            console.error("Firebase 초기화 오류:", error);
+            showMessage('Firebase 초기화에 실패했습니다. 코드를 확인해 주세요.');
+        }
+
+        // 인증 상태 변경 리스너
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+                userIdSpan.textContent = userId;
+                appIdSpan.textContent = appId;
+                console.log("인증 완료. 사용자 ID:", userId);
+                await setupRealtimeListener();
+            } else {
+                console.log("인증 실패. 익명 로그인 시도 중...");
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("인증 오류:", error);
+                }
+            }
+        });
+
+        /**
+         * Firestore 실시간 리스너 설정
+         */
+        async function setupRealtimeListener() {
+            if (!userId) return;
+
+            const lessonCollectionPath = `/artifacts/${appId}/users/${userId}/lessons`;
+            const q = query(collection(db, lessonCollectionPath));
+
+            lessonsSpinner.classList.remove('hidden');
+
+            onSnapshot(q, (snapshot) => {
+                lessonsSpinner.classList.add('hidden');
+                lessonsTableBody.innerHTML = '';
+                const lessons = [];
+                snapshot.forEach((doc) => {
+                    const lessonData = doc.data();
+                    lessons.push({ id: doc.id, ...lessonData });
+                });
+
+                // 날짜를 기준으로 최신순으로 정렬
+                lessons.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                if (lessons.length === 0) {
+                    noLessonsMessage.classList.remove('hidden');
+                } else {
+                    noLessonsMessage.classList.add('hidden');
+                    lessons.forEach(lesson => {
+                        renderLessonItem(lesson);
+                    });
+                }
+            }, (error) => {
+                console.error("데이터 읽기 오류:", error);
+                showMessage('데이터를 불러오는 데 실패했습니다.');
+                lessonsSpinner.classList.add('hidden');
+            });
+        }
+
+        /**
+         * 수업 항목을 테이블 행으로 렌더링
+         * @param {Object} lesson - 수업 데이터 객체
+         */
+        function renderLessonItem(lesson) {
+            const row = document.createElement('tr');
+            row.setAttribute('data-id', lesson.id);
+            row.classList.add('transition-all', 'duration-200', 'hover:bg-gray-50');
+
+            // 날짜 셀
+            const dateCell = document.createElement('td');
+            dateCell.dataset.label = '날짜';
+            dateCell.textContent = lesson.date;
+
+            // 수업 주제와 완료 상태를 담을 셀
+            const unitCell = document.createElement('td');
+            unitCell.dataset.label = '주제';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = lesson.completed;
+            checkbox.classList.add('form-checkbox', 'h-5', 'w-5', 'text-[#93b5e1]', 'rounded-md', 'border-gray-300', 'cursor-pointer', 'focus:ring-[#93b5e1]', 'inline-block', 'mr-2');
+            checkbox.id = `lesson-${lesson.id}`;
+            checkbox.addEventListener('change', () => toggleCompletion(lesson.id, checkbox.checked));
+
+            const unitLabel = document.createElement('label');
+            unitLabel.htmlFor = `lesson-${lesson.id}`;
+            unitLabel.classList.add('text-sm', 'font-medium', 'text-gray-900', 'break-words', 'cursor-pointer', 'transition-all', 'inline-block', 'align-middle');
+            unitLabel.textContent = lesson.unit;
+
+            if (lesson.completed) {
+                unitLabel.classList.add('line-through', 'text-gray-400');
+            }
+            
+            unitCell.appendChild(checkbox);
+            unitCell.appendChild(unitLabel);
+
+            // 결시 학생 셀
+            const absentStudentsCell = document.createElement('td');
+            absentStudentsCell.dataset.label = '결시 학생';
+            if (lesson.absentStudents && lesson.absentStudents.length > 0) {
+                lesson.absentStudents.forEach(student => {
+                    const studentDiv = document.createElement('div');
+                    studentDiv.classList.add('text-sm', 'font-bold');
+                    studentDiv.textContent = `${student.class} ${student.name}`;
+                    absentStudentsCell.appendChild(studentDiv);
+                });
+            } else {
+                absentStudentsCell.innerHTML = `<span class="text-gray-400">없음</span>`;
+            }
+            
+            // 관리 버튼 셀
+            const actionCell = document.createElement('td');
+            actionCell.classList.add('text-right', 'lesson-actions');
+            const deleteBtn = document.createElement('button');
+            deleteBtn.classList.add('p-2', 'rounded-full', 'btn-delete', 'text-white', 'text-sm', 'font-bold');
+            deleteBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z" clip-rule="evenodd" />
+                </svg>
+            `;
+            deleteBtn.addEventListener('click', () => deleteLesson(lesson.id));
+            actionCell.appendChild(deleteBtn);
+
+            row.appendChild(dateCell);
+            row.appendChild(unitCell);
+            row.appendChild(absentStudentsCell);
+            row.appendChild(actionCell);
+
+            lessonsTableBody.appendChild(row);
+        }
+
+        // 학생 추가 버튼 이벤트 리스너: DOM에 직접 데이터 저장
+        addAbsentStudentBtn.addEventListener('click', () => {
+            const studentClass = absentClassInput.value.trim();
+            const studentName = absentNameInput.value.trim();
+
+            if (!studentClass || !studentName) {
+                showMessage('반과 이름을 모두 입력해 주세요.');
+                return;
+            }
+
+            const studentDiv = document.createElement('div');
+            studentDiv.classList.add('flex', 'items-center', 'justify-between', 'bg-gray-100', 'p-2', 'rounded-md', 'text-sm', 'text-gray-800');
+            
+            // DOM에 데이터를 직접 저장
+            studentDiv.dataset.class = studentClass;
+            studentDiv.dataset.name = studentName;
+
+            studentDiv.innerHTML = `
+                <span>${studentClass} ${studentName}</span>
+                <button type="button" class="text-red-500 font-bold ml-2">삭제</button>
+            `;
+            studentDiv.querySelector('button').addEventListener('click', () => {
+                studentDiv.remove();
+            });
+
+            absentStudentsList.appendChild(studentDiv);
+
+            absentClassInput.value = '';
+            absentNameInput.value = '';
+            absentNameInput.focus();
+        });
+
+
+        /**
+         * 새로운 수업 추가
+         * @param {Event} e - 폼 제출 이벤트
+         */
+        addLessonForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const date = document.getElementById('lesson-date').value;
+            const unit = document.getElementById('lesson-unit').value;
+
+            if (!date || !unit || !userId) {
+                showMessage('날짜와 단원을 모두 입력하고, 앱이 로드될 때까지 기다려 주세요.');
+                return;
+            }
+
+            const dateParts = date.split('-');
+            const fixedDate = `2025-${dateParts[1]}-${dateParts[2]}`;
+
+            // 화면의 DOM에서 결시 학생 정보 가져오기
+            const absentStudentsElements = absentStudentsList.querySelectorAll('div[data-name]');
+            const absentStudents = Array.from(absentStudentsElements).map(el => ({
+                class: el.dataset.class,
+                name: el.dataset.name,
+            }));
+
+            // UI 상태 변경
+            addText.classList.add('hidden');
+            addSpinner.classList.remove('hidden');
+
+            try {
+                const lessonData = {
+                    date: fixedDate,
+                    unit,
+                    completed: false,
+                    absentStudents, // DOM에서 가져온 배열 사용
+                    timestamp: new Date()
+                };
+                await addDoc(collection(db, `/artifacts/${appId}/users/${userId}/lessons`), lessonData);
+                
+                // 폼 초기화 및 화면의 학생 목록 초기화
+                addLessonForm.reset();
+                absentStudentsList.innerHTML = '';
+            } catch (error) {
+                console.error("수업 추가 오류:", error);
+                showMessage('수업을 추가하는 데 실패했습니다.');
+            } finally {
+                // UI 상태 복구
+                addText.classList.remove('hidden');
+                addSpinner.classList.add('hidden');
+            }
+        });
+
+        /**
+         * 수업 완료 상태 토글
+         * @param {string} id - 수업 문서 ID
+         * @param {boolean} completed - 완료 상태
+         */
+        async function toggleCompletion(id, completed) {
+            try {
+                await updateDoc(doc(db, `/artifacts/${appId}/users/${userId}/lessons`, id), { completed });
+            } catch (error) {
+                console.error("완료 상태 업데이트 오류:", error);
+                showMessage('완료 상태를 업데이트하는 데 실패했습니다.');
+            }
+        }
+
+        /**
+         * 수업 삭제
+         * @param {string} id - 수업 문서 ID
+         */
+        async function deleteLesson(id) {
+            try {
+                await deleteDoc(doc(db, `/artifacts/${appId}/users/${userId}/lessons`, id));
+            } catch (error) {
+                console.error("수업 삭제 오류:", error);
+                showMessage('수업을 삭제하는 데 실패했습니다.');
+            }
+        }
+        
+        /**
+         * 메시지 모달 표시
+         * @param {string} message - 모달에 표시할 메시지
+         */
+        function showMessage(message) {
+            modalContent.innerHTML = message;
+            messageModal.classList.remove('hidden');
+            messageModal.classList.add('flex');
+        }
+
+        /**
+         * 메시지 모달 닫기
+         */
+        function closeModal() {
+            messageModal.classList.add('hidden');
+            messageModal.classList.remove('flex');
+        }
+
+        // 함수를 전역 객체에 할당하여 HTML에서 직접 호출 가능하게 함
+        window.showMessage = showMessage;
+        window.closeModal = closeModal;
+    </script>
+</body>
+</html>
