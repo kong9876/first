@@ -4,7 +4,7 @@ const SHEET_NAME = 'submissions';
 const SHARE_SHEET_NAME = 'shares';
 const LIKE_SHEET_NAME = 'likes';
 const STUDENT_TOKEN = '수업용-토큰을-바꾸세요';
-const TEACHER_KEY = '교사용-조회키를-길게-바꾸세요';
+const TEACHER_KEY = 'wjdqh2026';
 function ss_(){ return SpreadsheetApp.openById(SHEET_ID); }
 function sheet_(){const ss=ss_();let sh=ss.getSheetByName(SHEET_NAME);if(!sh)sh=ss.insertSheet(SHEET_NAME);if(sh.getLastRow()===0){sh.appendRow(['timestamp','class','number','name','payload_json']);sh.setFrozenRows(1)}return sh}
 function shareSheet_(){const ss=ss_();let sh=ss.getSheetByName(SHARE_SHEET_NAME);if(!sh)sh=ss.insertSheet(SHARE_SHEET_NAME);if(sh.getLastRow()===0){sh.appendRow(['id','timestamp','class','number','name','lesson','kind','title','text','extra_json']);sh.setFrozenRows(1)}return sh}
